@@ -126,7 +126,10 @@ func newDefaultLoggerAt(level zapcore.Level, path string) *zap.SugaredLogger {
 		logCfg.OutputPaths = []string{path}
 	}
 
-	baseLogger, _ := logCfg.Build()
+	baseLogger, err := logCfg.Build()
+	if err != nil {
+		panic(err)
+	}
 	return baseLogger.Sugar()
 }
 
