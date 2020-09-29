@@ -5,6 +5,7 @@ import (
 
 	"github.com/observiq/stanza/agent"
 	"github.com/observiq/stanza/database"
+	"github.com/observiq/stanza/logger"
 	pg "github.com/observiq/stanza/operator"
 	"github.com/observiq/stanza/plugin"
 	"github.com/spf13/cobra"
@@ -28,48 +29,49 @@ func NewGraphCommand(rootFlags *RootFlags) *cobra.Command {
 }
 
 func runGraph(_ *cobra.Command, _ []string, flags *RootFlags) {
-	var logger *zap.SugaredLogger
+	var sugaredLogger *zap.SugaredLogger
 	if flags.Debug {
-		logger = newDefaultLoggerAt(zapcore.DebugLevel, "")
+		sugaredLogger = newDefaultLoggerAt(zapcore.DebugLevel, "")
 	} else {
-		logger = newDefaultLoggerAt(zapcore.InfoLevel, "")
+		sugaredLogger = newDefaultLoggerAt(zapcore.InfoLevel, "")
 	}
 	defer func() {
-		_ = logger.Sync()
+		_ = sugaredLogger.Sync()
 	}()
 
 	cfg, err := agent.NewConfigFromGlobs(flags.ConfigFiles)
 	if err != nil {
-		logger.Errorw("Failed to read configs from glob", zap.Any("error", err))
+		sugaredLogger.Errorw("Failed to read configs from glob", zap.Any("error", err))
 		os.Exit(1)
 	}
 
 	pluginRegistry, err := plugin.NewPluginRegistry(flags.PluginDir)
 	if err != nil {
-		logger.Errorw("Failed to load plugin registry", zap.Any("error", err))
+		sugaredLogger.Errorw("Failed to load plugin registry", zap.Any("error", err))
 	}
 
+	stanzaLogger := logger.New(sugaredLogger)
 	buildContext := pg.BuildContext{
 		Database: database.NewStubDatabase(),
-		Logger:   logger,
+		Logger:   stanzaLogger,
 	}
 
 	pipeline, err := cfg.Pipeline.BuildPipeline(buildContext, pluginRegistry, nil)
 	if err != nil {
-		logger.Errorw("Failed to build operator pipeline", zap.Any("error", err))
+		stanzaLogger.Errorw("Failed to build operator pipeline", zap.Any("error", err))
 		os.Exit(1)
 	}
 
 	dotGraph, err := pipeline.Render()
 	if err != nil {
-		logger.Errorw("Failed to marshal dot graph", zap.Any("error", err))
+		stanzaLogger.Errorw("Failed to marshal dot graph", zap.Any("error", err))
 		os.Exit(1)
 	}
 
 	dotGraph = append(dotGraph, '\n')
 	_, err = stdout.Write(dotGraph)
 	if err != nil {
-		logger.Errorw("Failed to write dot graph to stdout", zap.Any("error", err))
+		stanzaLogger.Errorw("Failed to write dot graph to stdout", zap.Any("error", err))
 		os.Exit(1)
 	}
 }

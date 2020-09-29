@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/observiq/stanza/database"
-	"go.uber.org/zap"
+	"github.com/observiq/stanza/logger"
 )
 
 // Config is the configuration of an operator
@@ -27,7 +27,7 @@ type Builder interface {
 type BuildContext struct {
 	Database   database.Database
 	Parameters map[string]interface{}
-	Logger     *zap.SugaredLogger
+	Logger     *logger.Logger
 }
 
 // registry is a global registry of operator types to operator builders.
